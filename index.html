@@ -2,38 +2,55 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Hollow Knight</title>
-<style>
-  html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
-  #unity-canvas{width:100vw !important;height:100vh !important;position:fixed;top:0;left:0;display:block;background:#000}
-  #unity-loading-bar{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-family:Arial;z-index:999}
-</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Hollow Knight Fullscreen</title>
+<style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden} #unity-canvas{width:100vw !important;height:100vh !important;position:fixed;inset:0;display:block} #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-family:monospace;z-index:10}</style>
 </head>
 <body>
-<canvas id="unity-canvas" tabindex="-1"></canvas>
-<div id="unity-loading-bar">Loading...</div>
+<canvas id="unity-canvas"></canvas>
+<div id="msg">LOADING...</div>
 <script>
-const BASE = "https://raw.githack.com/karah0916/hollow-knight/main/";
-const loaderUrl = BASE + "Build/w-pt.loader.js";
-var canvas = document.getElementById('unity-canvas');
-
-var script = document.createElement("script");
-script.src = loaderUrl;
-script.onload = () => {
-  createUnityInstance(canvas, {
-    dataUrl: BASE + "Build/w-pt.data.unityweb",
-    frameworkUrl: BASE + "Build/w-pt.framework.js.unityweb",
-    codeUrl: BASE + "Build/w-pt.wasm.unityweb",
-    streamingAssetsUrl: BASE + "StreamingAssets",
-    companyName: "TeamCherry",
-    productName: "Hollow Knight",
-    productVersion: "1.5",
-    matchWebGLToCanvasSize: true,
-    devicePixelRatio: window.devicePixelRatio,
-  }).then(()=>{ document.getElementById('unity-loading-bar').style.display='none'; });
-};
-document.body.appendChild(script);
+(async()=>{
+  const BASES = [
+    "https://cdn.jsdelivr.net/gh/karah0916/hollow-knight@main/",
+    "https://raw.githack.com/karah0916/hollow-knight/main/"
+  ];
+  const FILES = ["Build/w-pt.loader.js","Build/w-py.loader.js","Build/w.loader.js"];
+  
+  let base, loader;
+  for(let b of BASES){
+    for(let f of FILES){
+      try{
+        let r = await fetch(b+f,{method:'HEAD'});
+        if(r.ok){ base=b; loader=f; throw "found"; }
+      }catch(e){ if(e=="found") break; }
+    }
+    if(loader) break;
+  }
+  if(!loader){ document.getElementById('msg').innerText='Game files not found - karah repo moved'; return; }
+  
+  console.log("Using", base+loader);
+  let s=document.createElement("script");
+  s.src=base+loader;
+  s.onload=()=>{
+    let cfg={
+      dataUrl: base+"Build/w-pt.data.unityweb",
+      frameworkUrl: base+"Build/w-pt.framework.js.unityweb",
+      codeUrl: base+"Build/w-pt.wasm.unityweb",
+      streamingAssetsUrl: base+"StreamingAssets",
+      companyName:"TeamCherry", productName:"Hollow Knight", productVersion:"1.5",
+    };
+    // try py variant if pt fails
+    if(loader.includes("py")){
+      cfg.dataUrl=base+"Build/w-py.data.unityweb";
+      cfg.frameworkUrl=base+"Build/w-py.framework.js.unityweb";
+      cfg.codeUrl=base+"Build/w-py.wasm.unityweb";
+    }
+    createUnityInstance(document.getElementById('unity-canvas'), cfg).then(()=>{document.getElementById('msg').remove()});
+  };
+  s.onerror=()=>{document.getElementById('msg').innerText='loader failed: '+base+loader};
+  document.body.appendChild(s);
+})();
 </script>
 </body>
 </html>
